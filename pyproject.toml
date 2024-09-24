@@ -1,0 +1,42 @@
+[build-system]
+requires = [
+    "setuptools",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chmura_salami"
+version = "1.0"
+description = "Collection of script for Szkoła w Chmurze"
+readme = "README.md"
+requires-python = ">=3.0"
+keywords = ["Szkoła w Chmurze", "xlsx"]
+authors = [
+  {name="Bohdan Bobrowski", email="bohdanbobrowski@gmail.com"},
+]
+maintainers = [
+  {name="Bohdan Bobrowski", email="bohdanbobrowski@gmail.com"}
+]
+dependencies = [
+    "pydantic",
+    "pandas>=2.2.3",
+    "openpyxl>=3.1.5",
+    "progress>=1.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.3",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.6.4",
+    "mypy>=1.11.2",
+]
+
+[project.scripts]
+chmura_salami = "chmura.salami:main"
+
+[tool.setuptools]
+packages = ["chmura"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "I"]

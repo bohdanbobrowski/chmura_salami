@@ -1,6 +1,8 @@
 import os.path
+import sys
 
 import pandas
+from progress.bar import Bar
 from pydantic import BaseModel
 
 
@@ -51,7 +53,10 @@ class School(BaseModel):
     def short_name(self) -> str:
         comma_index = self.name.find(",")
         if comma_index:
-            return self.name[:comma_index]
+            short_name = self.name[:comma_index]
+            if len(short_name) > 31:
+                return short_name.rsplit(" ", 1)[0]
+            return short_name
         return self.name
 
     def __key(self):
@@ -99,15 +104,14 @@ def parse_field(field) -> dict | None:
         return None
 
 
-def main(file_name: str = "Grafik nauczycieli.xlsx", sheet_name: str = "Sheet1"):
-    root_path = os.path.dirname(os.path.abspath(__file__))
-    workbook = pandas.read_excel(
-        os.path.join(root_path, file_name), sheet_name=sheet_name
-    )
+def chmura_salami(file_name: str, sheet_name: str = "Sheet1"):
+    workbook = pandas.read_excel(file_name, sheet_name=sheet_name)
     workbook.head()
     schools = set()
+    print("")
+    bar = Bar("Konwersja pliku xlsx:", max=len(workbook))
     for row in range(0, len(workbook)):
-        # for row in range(0, 20):
+        bar.next()
         teacher = Teacher(
             first_name=workbook["Imię"].iloc[row],
             second_name=workbook["Nazwisko"].iloc[row],
@@ -147,11 +151,25 @@ def main(file_name: str = "Grafik nauczycieli.xlsx", sheet_name: str = "Sheet1")
                                             raise TeacherAlreadyAddedError(
                                                 "Nauczyciel już został dodany!"
                                             )
+    bar.finish()
+    print("")
+    print(f"Wyeksportowano dane dla {len(schools)} placówek:")
+    converted_file_name = file_name.split(".")[:-1]
+    converted_file_name.append(" - SALAMI")
+    converted_file_name.append(".xlsx")
+    converted_file_name = "".join(converted_file_name)
 
-    print(f"Wyeksportowano dane dla {len(schools)} placówek.")
-    with pandas.ExcelWriter('salami.xlsx') as writer:
+    exists = 0
+    while os.path.isfile(converted_file_name):
+        converted_file_name = converted_file_name.replace(f" ({exists}).xlsx", ".xlsx")
+        exists += 1
+        converted_file_name = converted_file_name.replace(f".xlsx", f" ({exists}).xlsx")
+
+    with pandas.ExcelWriter(converted_file_name) as writer:
+        x = 1
         for s in schools:
-            print(f"{s.short_name} ({len(s.short_name)})")
+            print(f"{x}. {s.short_name} ({len(s.short_name)})")
+            x += 1
             data = {
                 "Sala": [],
                 "Termin": [],
@@ -168,8 +186,30 @@ def main(file_name: str = "Grafik nauczycieli.xlsx", sheet_name: str = "Sheet1")
                     data["Rola"].append(t.role)
             data_frame = pandas.DataFrame(data)
             data_frame.to_excel(writer, sheet_name=s.short_name)
+    print("")
+    print(f"Zapisano plik {converted_file_name}")
 
 
+def main():
+    print("Chmura Salami")
+    if len(sys.argv) > 1:
+        file_name = sys.argv[1]
+        if len(sys.argv) > 2:
+            sheet_name = sys.argv[2]
+        else:
+            sheet_name = "Sheet1"
+        chmura_salami(file_name, sheet_name)
+    else:
+        print("-" * 100)
+        print("Jak uruchamiać?")
+        print(
+            'chmura_salami [nazwa pliku.xlsx] [opcjonalnie: nazwa arkusza, domyślnie "Sheet1"]'
+        )
+        print("-" * 100)
+        print("Przykłady?")
+        print('chmura_salami "Grafik nauczycieli.xlsx"')
+        print('chmura_salami "Grafik nauczycieli.xlsx" "Sheet1"')
+        print("-" * 100)
 
 
 if __name__ == "__main__":
