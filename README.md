@@ -1,5 +1,5 @@
 # Chmura Salami
-<img src="chmura_salami.jpeg" width="600" style="margin:0 10px 10px 0" />
+<img src="chmura_salami.jpeg" width="600" style="margin:0 10px 10px 0" alt="https://www.bing.com/images/create/salami-clouds/1-66f2579f420e429b910156fdf886f2b6?id=GIDXeuMdQxRp%2bFXjQpqggA%3d%3d&view=detailv2&idpp=genimg&thId=OIG2.TlHUZXEFtlNPenV.gW4m&skey=66kfNTfiYcUdh67aYIS4SkOLIdsUb8Ji_R3ihxBl_c0&FORM=GCRIDP&mode=overlay" />
 
 ## Skrypty dla Szkoły w Chmurze
 
@@ -10,7 +10,7 @@
 
 ### Instalacja
 
-    pip install git+https://github.com/bohdanbobrowski/mdmc2exif
+    pip install git+https://github.com/bohdanbobrowski/chmura_salami
 
 ### Środowisko deweloperskie
 
