@@ -36,11 +36,12 @@
 
     chmura_salami [nazwa pliku xlsx] [opcjonalnie: nazwa arkusza, domyślnie "Sheet1"]
 
-Nie jest to zawsze konieczne, ale gdy nazwa pliku bądź arkusza zawiera spacje należy je podać w cudzysłowiu. 
-
 #### Przykłady:
 
     chmura_salami grafik_nauczycieli.xlsx
     chmura_salami grafik_nauczycieli.xlsx Sheet1   
+
+Gdy nazwa pliku bądź arkusza zawiera spacje należy je podać w cudzysłowiu:
+
     chmura_salami "Grafik nauczycieli.xlsx"
     chmura_salami "Grafik nauczycieli.xlsx" "Sheet1"
