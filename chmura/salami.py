@@ -1,3 +1,4 @@
+import argparse
 import os.path
 import sys
 
@@ -191,25 +192,11 @@ def chmura_salami(file_name: str, sheet_name: str = "Sheet1"):
 
 
 def main():
-    print("Chmura Salami")
-    if len(sys.argv) > 1:
-        file_name = sys.argv[1]
-        if len(sys.argv) > 2:
-            sheet_name = sys.argv[2]
-        else:
-            sheet_name = "Sheet1"
-        chmura_salami(file_name, sheet_name)
-    else:
-        print("-" * 100)
-        print("Jak uruchamiać?")
-        print(
-            'chmura_salami [nazwa pliku.xlsx] [opcjonalnie: nazwa arkusza, domyślnie "Sheet1"]'
-        )
-        print("-" * 100)
-        print("Przykłady?")
-        print('chmura_salami "Grafik nauczycieli.xlsx"')
-        print('chmura_salami "Grafik nauczycieli.xlsx" "Sheet1"')
-        print("-" * 100)
+    parser = argparse.ArgumentParser(prog="chmura_salami", description="Chmura Salami")
+    parser.add_argument("file_name", type=str)
+    parser.add_argument("-s", "--sheet", type=str, required=False, default="Sheet1")
+    args = parser.parse_args()
+    chmura_salami(args.file_name, args.sheet)
 
 
 if __name__ == "__main__":
