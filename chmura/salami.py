@@ -1,6 +1,7 @@
 import argparse
 import os.path
 import sys
+from datetime import datetime
 
 import pandas
 from progress.bar import Bar
@@ -34,6 +35,21 @@ class Room(BaseModel):
     subject: str = ""
     teachers: set[Teacher] = set()
 
+    @property
+    def term_start(self) -> datetime | None:
+        if len(self.term) > 8:
+            return datetime.strptime(self.term.split(" - ")[0], "%d.%m.%y %H:%M")
+        return None
+
+    @property
+    def term_end(self) -> datetime | None:
+        if len(self.term) > 8:
+            return datetime.strptime(
+                self.term.split(" ")[0] + " " + self.term.split(" - ")[1],
+                "%d.%m.%y %H:%M",
+            )
+        return None
+
     def __key(self):
         return self.name, self.term
 
@@ -59,6 +75,16 @@ class School(BaseModel):
                 return short_name.rsplit(" ", 1)[0]
             return short_name
         return self.name
+
+    @property
+    def file_name(self) -> str:
+        file_name = self.short_name
+        file_name = file_name.replace(":", "")
+        file_name = file_name.replace("/", "")
+        file_name = file_name.replace("\\", "")
+        file_name = file_name.replace(".", "")
+        file_name = file_name.replace(",", "")
+        return file_name
 
     def __key(self):
         return self.name
@@ -105,7 +131,92 @@ def parse_field(field) -> dict | None:
         return None
 
 
-def chmura_salami(file_name: str, sheet_name: str = "Sheet1"):
+def prevent_overwrite(file_name: str) -> str:
+    exists = 0
+    while os.path.isfile(file_name):
+        file_name = file_name.replace(f" ({exists}).xlsx", ".xlsx")
+        exists += 1
+        file_name = file_name.replace(f".xlsx", f" ({exists}).xlsx")
+    return file_name
+
+
+def export_data_to_one_file(
+    schools,
+    file_name,
+):
+    """Pierwsza wersja eksportu - do jednego pliku."""
+    print("")
+    print(f"Wyeksportowano dane dla {len(schools)} placówek:")
+    converted_file_name = file_name.split(".")[:-1]
+    converted_file_name.append(" - SALAMI")
+    converted_file_name.append(".xlsx")
+    converted_file_name = "".join(converted_file_name)
+
+    converted_file_name = prevent_overwrite(converted_file_name)
+
+    with pandas.ExcelWriter(converted_file_name) as writer:
+        x = 1
+        for s in schools:
+            print(f"{x}. {s.short_name} ({len(s.short_name)})")
+            x += 1
+            data = {
+                "Sala": [],
+                "Termin": [],
+                "Przedmiot": [],
+                "Nauczyciel": [],
+                "Rola": [],
+            }
+            for r in s.rooms:
+                for t in r.teachers:
+                    data["Sala"].append(r.name)
+                    data["Termin"].append(r.term)
+                    data["Przedmiot"].append(r.subject)
+                    data["Nauczyciel"].append(t.name)
+                    data["Rola"].append(t.role)
+            data_frame = pandas.DataFrame(data)
+            data_frame.to_excel(writer, sheet_name=s.short_name)
+    print("")
+    print(f'Zapisano plik "{converted_file_name}"')
+
+
+def export_data(
+    schools,
+    file_name,
+):
+    """Poprawiony eksport danych do wielu plików - jeden plik na placówkę"""
+    print("")
+    print(f"Wyeksportowano dane dla {len(schools)} placówek:")
+    x = 1
+    for s in schools:
+        converted_file_name = file_name.split(".")[:-1]
+        converted_file_name.append(f" - {s.file_name} - SALAMI")
+        converted_file_name.append(".xlsx")
+        converted_file_name = "".join(converted_file_name)
+        converted_file_name = prevent_overwrite(converted_file_name)
+        school_sheets = {}
+        for r in s.rooms:
+            term_date = r.term_start.strftime("%m.%d")
+            if term_date not in school_sheets.keys():
+                school_sheets[term_date] = {}
+            if r.name not in school_sheets[term_date]:
+                school_sheets[term_date][r.name] = [
+                    r.subject
+                ]
+                for t in r.teachers:
+                    school_sheets[term_date][r.name].append(t.name)
+                while len(school_sheets[term_date][r.name]) < 30:
+                    school_sheets[term_date][r.name].append("")
+        with pandas.ExcelWriter(converted_file_name) as writer:
+            for sn in sorted(school_sheets.keys()):
+                data_frame = pandas.DataFrame(school_sheets[sn])
+                data_frame.to_excel(writer, sheet_name=sn)
+            print(f"{x}. {s.short_name} ({len(s.short_name)})")
+            print(f'Zapisano plik "{converted_file_name}"')
+        x += 1
+    print("")
+
+
+def chmura_salami(file_name: str, sheet_name: str = "Sheet1", one_file: bool = False):
     workbook = pandas.read_excel(file_name, sheet_name=sheet_name)
     workbook.head()
     schools = set()
@@ -153,50 +264,31 @@ def chmura_salami(file_name: str, sheet_name: str = "Sheet1"):
                                                 "Nauczyciel już został dodany!"
                                             )
     bar.finish()
-    print("")
-    print(f"Wyeksportowano dane dla {len(schools)} placówek:")
-    converted_file_name = file_name.split(".")[:-1]
-    converted_file_name.append(" - SALAMI")
-    converted_file_name.append(".xlsx")
-    converted_file_name = "".join(converted_file_name)
-
-    exists = 0
-    while os.path.isfile(converted_file_name):
-        converted_file_name = converted_file_name.replace(f" ({exists}).xlsx", ".xlsx")
-        exists += 1
-        converted_file_name = converted_file_name.replace(f".xlsx", f" ({exists}).xlsx")
-
-    with pandas.ExcelWriter(converted_file_name) as writer:
-        x = 1
-        for s in schools:
-            print(f"{x}. {s.short_name} ({len(s.short_name)})")
-            x += 1
-            data = {
-                "Sala": [],
-                "Termin": [],
-                "Przedmiot": [],
-                "Nauczyciel": [],
-                "Rola": [],
-            }
-            for r in s.rooms:
-                for t in r.teachers:
-                    data["Sala"].append(r.name)
-                    data["Termin"].append(r.term)
-                    data["Przedmiot"].append(r.subject)
-                    data["Nauczyciel"].append(t.name)
-                    data["Rola"].append(t.role)
-            data_frame = pandas.DataFrame(data)
-            data_frame.to_excel(writer, sheet_name=s.short_name)
-    print("")
-    print(f"Zapisano plik {converted_file_name}")
+    if one_file:
+        export_data_to_one_file(schools, file_name)
+    else:
+        export_data(schools, file_name)
 
 
 def main():
     parser = argparse.ArgumentParser(prog="chmura_salami", description="Chmura Salami")
-    parser.add_argument("file_name", type=str)
-    parser.add_argument("-s", "--sheet", type=str, required=False, default="Sheet1")
+    parser.add_argument("file_name", type=str, help="Nazwa pliku")
+    parser.add_argument(
+        "-s",
+        "--sheet",
+        type=str,
+        required=False,
+        default="Sheet1",
+        help='Nazwa arkusza (domyślnie "Sheet1")',
+    )
+    parser.add_argument(
+        "-o",
+        "--one-file",
+        action="store_true",
+        help='Eksport do jednego, "płaskiego" pliku',
+    )
     args = parser.parse_args()
-    chmura_salami(args.file_name, args.sheet)
+    chmura_salami(args.file_name, args.sheet, args.one_file)
 
 
 if __name__ == "__main__":
