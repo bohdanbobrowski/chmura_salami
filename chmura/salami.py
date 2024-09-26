@@ -1,9 +1,12 @@
 import argparse
+import json
 import os.path
 import sys
 from datetime import datetime
+from typing import Any
 
-import pandas
+import pandas as pd
+import xlsxwriter
 from progress.bar import Bar
 from pydantic import BaseModel
 
@@ -16,6 +19,19 @@ class Teacher(BaseModel):
     @property
     def name(self) -> str:
         return f"{self.first_name} {self.second_name}"
+
+    @property
+    def name_with_role(self) -> str:
+        name_with_role = f"{self.first_name} {self.second_name}"
+        if self.role:
+            name_with_role += f" ({self.role})"
+        return name_with_role
+
+    @property
+    def sort_value(self) -> str:
+        if self.role.upper() == "PRZEWODNICZĄCY":
+            return "000000000"
+        return self.name
 
     def __key(self):
         return self.first_name, self.second_name
@@ -36,6 +52,13 @@ class Room(BaseModel):
     teachers: set[Teacher] = set()
 
     @property
+    def row_title(self) -> str:
+        row_title = self.name
+        if self.term_start:
+            row_title = f"{row_title} {self.term_start.strftime('%H:%M')}"
+        return row_title
+
+    @property
     def term_start(self) -> datetime | None:
         if len(self.term) > 8:
             return datetime.strptime(self.term.split(" - ")[0], "%d.%m.%y %H:%M")
@@ -51,7 +74,7 @@ class Room(BaseModel):
         return None
 
     def __key(self):
-        return self.name, self.term
+        return self.name, self.term_start
 
     def __hash__(self):
         return hash(self.__key())
@@ -154,7 +177,7 @@ def export_data_to_one_file(
 
     converted_file_name = prevent_overwrite(converted_file_name)
 
-    with pandas.ExcelWriter(converted_file_name) as writer:
+    with pd.ExcelWriter(converted_file_name) as writer:
         x = 1
         for s in schools:
             print(f"{x}. {s.short_name} ({len(s.short_name)})")
@@ -173,10 +196,32 @@ def export_data_to_one_file(
                     data["Przedmiot"].append(r.subject)
                     data["Nauczyciel"].append(t.name)
                     data["Rola"].append(t.role)
-            data_frame = pandas.DataFrame(data)
+            data_frame = pd.DataFrame(data)
             data_frame.to_excel(writer, sheet_name=s.short_name)
     print("")
     print(f'Zapisano plik "{converted_file_name}"')
+
+
+def _prepare_data(data):
+    """Sort columns by name and make'em equal."""
+    sorted_columns = sorted(data.keys())
+    max_rows = 0
+    for column in sorted_columns:
+        if len(data[column]) > max_rows:
+            max_rows = len(data[column])
+    output_data = {}
+    for column in sorted_columns:
+        column_data = []
+        for r in range(0, max_rows):
+            try:
+                if isinstance(data[column][r], Teacher):
+                    column_data.append(data[column][r].name_with_role)
+                else:
+                    column_data.append(data[column][r])
+            except IndexError:
+                column_data.append("")
+        output_data[column] = column_data
+    return output_data
 
 
 def export_data(
@@ -198,38 +243,49 @@ def export_data(
             term_date = r.term_start.strftime("%m.%d")
             if term_date not in school_sheets.keys():
                 school_sheets[term_date] = {}
-            if r.name not in school_sheets[term_date]:
-                school_sheets[term_date][r.name] = [
-                    r.subject
-                ]
+            if r.row_title not in school_sheets[term_date]:
+                school_sheets[term_date][r.row_title] = []
                 for t in r.teachers:
-                    school_sheets[term_date][r.name].append(t.name)
-                while len(school_sheets[term_date][r.name]) < 30:
-                    school_sheets[term_date][r.name].append("")
-        with pandas.ExcelWriter(converted_file_name) as writer:
-            for sn in sorted(school_sheets.keys()):
-                data_frame = pandas.DataFrame(school_sheets[sn])
-                data_frame.to_excel(writer, sheet_name=sn)
+                    school_sheets[term_date][r.row_title].append(t)
+                school_sheets[term_date][r.row_title] = [r.subject] + sorted(
+                    school_sheets[term_date][r.row_title], key=lambda x: x.sort_value
+                )
+        if school_sheets:
+            school_sheets_names_sorted = sorted(school_sheets.keys())
+            with pd.ExcelWriter(converted_file_name, engine="xlsxwriter") as writer:
+                for sheet_name in school_sheets_names_sorted:
+                    sheet_data = _prepare_data(school_sheets[sheet_name])
+                    data_frame = pd.DataFrame.from_dict(sheet_data, orient="columns")
+                    data_frame.to_excel(writer, sheet_name=sheet_name, startrow=4)
+                    # Szerokość kolumn w excelu:
+                    for column_name in sheet_data.keys():
+                        col_idx = data_frame.columns.get_loc(column_name)
+                        writer.sheets[sheet_name].set_column(
+                            col_idx + 1, col_idx + 1, 30
+                        )
             print(f"{x}. {s.short_name} ({len(s.short_name)})")
             print(f'Zapisano plik "{converted_file_name}"')
+
+        else:
+            print(school_sheets)
         x += 1
     print("")
 
 
 def chmura_salami(file_name: str, sheet_name: str = "Sheet1", one_file: bool = False):
-    workbook = pandas.read_excel(file_name, sheet_name=sheet_name)
+    workbook = pd.read_excel(file_name, sheet_name=sheet_name)
     workbook.head()
     schools = set()
     print("")
     bar = Bar("Konwersja pliku xlsx:", max=len(workbook))
     for row in range(0, len(workbook)):
         bar.next()
-        teacher = Teacher(
-            first_name=workbook["Imię"].iloc[row],
-            second_name=workbook["Nazwisko"].iloc[row],
-        )
         for term in get_terms(workbook):
-            field = str(workbook[term].iloc[row]).strip()
+            teacher = Teacher(
+                first_name=workbook["Imię"].iloc[row],
+                second_name=workbook["Nazwisko"].iloc[row],
+            )
+            field = str(workbook[term].iloc[row])
             field_parsed = parse_field(field)
             if field_parsed:
                 teacher.role = field_parsed.get("Rola", "")
