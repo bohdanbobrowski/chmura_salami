@@ -1,12 +1,8 @@
 import argparse
-import json
 import os.path
-import sys
 from datetime import datetime
-from typing import Any
 
 import pandas as pd
-import xlsxwriter
 from progress.bar import Bar
 from pydantic import BaseModel
 
@@ -159,7 +155,7 @@ def prevent_overwrite(file_name: str) -> str:
     while os.path.isfile(file_name):
         file_name = file_name.replace(f" ({exists}).xlsx", ".xlsx")
         exists += 1
-        file_name = file_name.replace(f".xlsx", f" ({exists}).xlsx")
+        file_name = file_name.replace(".xlsx", f" ({exists}).xlsx")
     return file_name
 
 
