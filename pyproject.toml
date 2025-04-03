@@ -35,6 +35,7 @@ dev = [
 
 [project.scripts]
 chmura_salami = "chmura.salami:main"
+chmura_osoby = "chmura.osoby:main"
 
 [tool.setuptools]
 packages = ["chmura"]
