@@ -77,6 +77,7 @@ def chmura_osoby(file_name: str, output_file_name: str | None):
         with pd.ExcelWriter(output_file_name) as writer:
             data_frame = pd.DataFrame(data)
             data_frame.to_excel(writer, "Chmura osoby")
+        print(f'Zapisano plik "{output_file_name}"')
 
 
 def main():
