@@ -4,11 +4,16 @@ import pandas as pd
 
 
 def validate_teacher_name(teacher_name: str):
+    while teacher_name.find("  ") > -1:
+        teacher_name = teacher_name.replace("  ", "")
     teacher_name = teacher_name.split(" ")
-    rank = None
     if len(teacher_name) > 3:
-        rank = teacher_name[3]
-    return teacher_name[0], f"{teacher_name[1]} {teacher_name[2]}", rank
+        return teacher_name[0], f"{teacher_name[1]} {teacher_name[2]}", teacher_name[3]
+    if len(teacher_name) > 2:
+        return teacher_name[0], f"{teacher_name[1]} {teacher_name[2]}", None
+    if len(teacher_name) > 1:
+        return None, f"{teacher_name[0]} {teacher_name[1]}", None
+    return None, f"{teacher_name[0]}", None
 
 
 def chmura_osoby(file_name: str, output_file_name: str | None):
@@ -28,7 +33,17 @@ def chmura_osoby(file_name: str, output_file_name: str | None):
                         role = "członek"
                     teacher_name = str(workbook[column].iloc[row]).strip()
                     if teacher_name != "nan":
-                        job, teacher_name, rank = validate_teacher_name(teacher_name)
+                        try:
+                            job, teacher_name, rank = validate_teacher_name(
+                                teacher_name
+                            )
+                        except IndexError as e:
+                            print(e)
+                            print(f"exam_date = {exam_date}")
+                            print(f"column = {column}")
+                            print(f"row = {row}")
+                            print(f"teacher_name = {teacher_name}")
+                            exit()
                         if teacher_name not in output:
                             output[teacher_name] = []
                         output[teacher_name].append(
