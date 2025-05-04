@@ -38,6 +38,10 @@ chmura_salami = "chmura.salami:main"
 chmura_osoby = "chmura.osoby:main"
 chmura_nauczyciele = "chmura.nauczyciele:main"
 
+
+[tool.ruff]
+line-length = 120
+
 [tool.setuptools]
 packages = ["chmura"]
 
