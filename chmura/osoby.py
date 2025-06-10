@@ -32,9 +32,9 @@ def chmura_osoby(file_name: str, output_file_name: str | None):
                     if row > 4:
                         role = "członek"
                     teacher_name = str(workbook[column].iloc[row]).strip()
-                    if teacher_name != "nan":
+                    if teacher_name and teacher_name != "nan":
                         try:
-                            job, teacher_name, rank = validate_teacher_name(
+                            job, t_name, rank = validate_teacher_name(
                                 teacher_name
                             )
                         except IndexError as e:
@@ -44,9 +44,9 @@ def chmura_osoby(file_name: str, output_file_name: str | None):
                             print(f"row = {row}")
                             print(f"teacher_name = {teacher_name}")
                             exit()
-                        if teacher_name not in output:
-                            output[teacher_name] = []
-                        output[teacher_name].append(
+                        if t_name and t_name not in output:
+                            output[t_name] = []
+                        output[t_name].append(
                             [
                                 exam_date,
                                 room_name,
